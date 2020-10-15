@@ -60,6 +60,21 @@ $posts = $db->prepare('SELECT members.name, members.picture, b.* FROM members, /
 $posts->bindParam(1, $start, PDO::PARAM_INT);
 $posts->execute();
 
+//$rts = $db->prepare('SELECT posts.*, retweet.rt_post_id, COUNT(retweet.rt_post_id) AS rt_cnt FROM posts, retweet WHERE posts.member_id= retweet.rt_post_id GROUP BY posts.id ORDER BY posts.created DESC LIMIT ?, 5;');
+//$rts->bindParam(1, $start, PDO::PARAM_INT);
+//$rts->execute();
+
+$posts = $db->prepare('SELECT members.name, members.picture, b.* FROM members,
+                      (SELECT posts.*, rt_cnt FROM posts LEFT JOIN
+                      (SELECT rt_post_id, COUNT(rt_post_id) AS rt_cnt
+                      FROM retweet GROUP BY rt_post_id) AS a
+                      ON posts.id=a.rt_post_id) AS b
+                      WHERE members.id=b.member_id
+                      ORDER BY b.created DESC LIMIT ?, 5;');
+$posts->bindParam(1, $start, PDO::PARAM_INT);
+$posts->execute();
+
+
 //返信の場合
 if(isset($_REQUEST['res'])) {
   //返信の処理
@@ -70,19 +85,8 @@ if(isset($_REQUEST['res'])) {
   $message = '@' . $table['name'] . ' ' . $table['message'];
 }
 
-$iine_marks = $db->prepare('SELECT posts.*, likes.pressed_member_id FROM posts LEFT JOIN likes ON posts.id=likes.liked_post_id WHERE pressed_member_id=?');
-$iine_marks->bindParam(1, $_SESSION['id'], PDO::PARAM_INT);
-$iine_marks->execute();
-$iine_mark = $iine_marks->fetch();
-
 
 //ログインしている人がいいねした投稿を取得する
-$iine_totals = $db->prepare('SELECT liked_post_id, COUNT(liked_post_id) AS iine_cnt FROM likes WHERE pressed_member_id=? GROUP BY liked_post_id');
-$iine_totals->bindParam(1, $_SESSION['id'], PDO::PARAM_INT);
-$iine_totals->execute();
-$iine_total = $iine_totals->fetch();
-
-
 $iine_totals = $db->prepare('SELECT liked_post_id FROM likes WHERE pressed_member_id=?');
 $iine_totals->bindParam(1, $_SESSION['id'], PDO::PARAM_INT);
 $iine_totals->execute();
@@ -90,6 +94,15 @@ $iine_total = array();
 foreach ($iine_totals as $iine_ttl) {
   $iine_total[] = $iine_ttl;
 }
+
+$rt_totals = $db->prepare('SELECT rt_post_id FROM retweet WHERE pressed_member_id=?');
+$rt_totals->bindParam(1, $_SESSION['id'], PDO::PARAM_INT);
+$rt_totals->execute();
+$rt_total = array();
+foreach ($rt_totals as $rt_ttl) {
+  $rt_total[] = $rt_ttl;
+}
+
 
 //htmlspecialcharsのショートカット
 function h($value) {
@@ -139,7 +152,7 @@ function makeLink ($value) {
     <?php
     foreach($posts as $post):
     ?>
-
+    
     <div class="msg">
     <img src="member_picture/<?php echo h($post['picture']); ?>" width="48" height="48" alt="<?php echo h($post['name']); ?>" class="main_picture" />
 
@@ -155,24 +168,33 @@ function makeLink ($value) {
         }
     }
     ?>
+    <?php
+    $rt_number = 0;
+    for($i=0; $i<count($rt_total); $i++) {
+        if ($rt_total[$i]['rt_post_id'] == $post['id']) {
+            $rt_number = $post['id'];
+            break;
+        }
+    }
+    ?>
     <?php if($like_number > 0){ ?>
-    <a class="iine_icon" href="iine_delete.php?id=<?php echo h($post['id']); ?>">❤️</a><?php echo h($post['iine_cnt']); ?>
+    <a class="iine_icon" href="iine_delete.php?id=<?php echo h($post['id']); ?>">❤️</a><span><?php echo h($post['iine_cnt']); ?></span>
        <?php } else { ?>
     <a class="iine_icon" href="iine.php?id=<?php echo h($post['id']); ?>">♡</a><?php echo h($post['iine_cnt']); ?>
     <?php }?>
 
-    <?php ?>
-    <a href="iine_rt.php?id=<?php echo h($post['id']); ?>" style="padding-left: 5px;>
-    <img src="image/retweet.png" width="15" height="15" alt="rt_button" >
-    </a>
-    <?php ?>
 
-    <?php ?>
-    <a href="iine_rt.php?id=<?php echo h($post['id']); ?>" style="padding-left: 5px;">
+    <?php if($rt_number > 0){ ?>
+    <a href="rt_delete.php?id=<?php echo h($post['id']); ?>" style="padding-left: 5px;">
+    <img src="image/retweet.png" width="15" height="15" alt="rt_button" />
+    </a>
+    <span><?php echo h($post['rt_cnt']); ?></span>
+    <?php } else { ?>
+    <a href="rt.php?id=<?php echo h($post['id']); ?>" style="padding-left: 5px;">
     <img src="image/non_retweet.png" width="15" height="15" alt="rt_button" />
     </a>
-    <?php ?>
-
+    <span><?php echo h($post['rt_cnt']); ?></span>
+    <?php } ?>
 
     <p class="day"><a href="view.php?id=<?php print(h($post['id']));?>"><?php echo h($post['created']); ?></a>
 

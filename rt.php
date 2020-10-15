@@ -22,6 +22,18 @@ if($retweet_btn['rt_cnt'] == 0){
     }
 
 
+//リツイートする予定の投稿を抜き出す
+$posts = $db->prepare('SELECT members.name, members.picture, b.* FROM members,
+                        (SELECT posts.*, rt_cnt FROM posts LEFT JOIN
+                        (SELECT rt_post_id, COUNT(rt_post_id) AS rt_cnt
+                        FROM retweet GROUP BY rt_post_id) AS a
+                        ON posts.id=a.rt_post_id) AS b
+                        WHERE members.id=b.member_id
+                        ORDER BY b.created DESC LIMIT ?, 5;');
+                        $posts->bindParam(1, $start, PDO::PARAM_INT);
+                        $posts->execute();
+
+
 header('Location: index.php');
 exit();
 }
