@@ -8,7 +8,7 @@ require('dbconnect.php');
 if(isset($_SESSION['id'])) {
     $id = $_REQUEST['id'];
 
-    $iine_btns = $db->prepare('SELECT COUNT(liked_post_id) AS iine_cnt FROM (SELECT liked_post_id FROM likes WHERE liked_post_id=? AND pressed_member_id=? GROUP BY liked_post_id) p');
+    $iine_btns = $db->prepare('SELECT COUNT(liked_post_id) AS iine_cnt FROM (SELECT liked_post_id FROM likes WHERE liked_post_id=? AND pressed_member_id=? GROUP BY liked_post_id) A');
     $iine_btns->bindParam(1, $id, PDO::PARAM_INT);
     $iine_btns->bindParam(2, $_SESSION['id'], PDO::PARAM_INT);
     $iine_btns->execute();
