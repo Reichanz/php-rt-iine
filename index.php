@@ -50,29 +50,50 @@ $start = ($page - 1) * 5;
 
 //投稿を取得する
 //postsテーブルから投稿を抽出する際、postsテーブルのidにいいねされた件数を結合しておく
-$posts = $db->prepare('SELECT members.name, members.picture, b.* FROM members, /* 「b*」はpostsテーブルの情報＋いいねの件数 */
+$posts = $db->prepare('SELECT members.name, members.picture, b.* FROM members,
                       (SELECT posts.*, iine_cnt FROM posts LEFT JOIN
-                      (SELECT liked_post_id, COUNT(liked_post_id) AS iine_cnt /*いいねの合計をiine_cntとする */
-                      FROM likes GROUP BY liked_post_id) AS a /*３つめのSELECTの抽出結果を「a」と命名 */
-                      ON posts.id=a.liked_post_id) AS b /*投稿のidといいねを押された投稿のidが同じのを結合 */
+                      (SELECT liked_post_id, COUNT(liked_post_id) AS iine_cnt
+                      FROM likes GROUP BY liked_post_id) AS a
+                      ON posts.id=a.liked_post_id) AS b
                       WHERE members.id=b.member_id
                       ORDER BY b.created DESC LIMIT ?, 5;');
-$posts->bindParam(1, $start, PDO::PARAM_INT);
-$posts->execute();
-
-//$rts = $db->prepare('SELECT posts.*, retweet.rt_post_id, COUNT(retweet.rt_post_id) AS rt_cnt FROM posts, retweet WHERE posts.member_id= retweet.rt_post_id GROUP BY posts.id ORDER BY posts.created DESC LIMIT ?, 5;');
-//$rts->bindParam(1, $start, PDO::PARAM_INT);
-//$rts->execute();
-
 $posts = $db->prepare('SELECT members.name, members.picture, b.* FROM members,
                       (SELECT posts.*, rt_cnt FROM posts LEFT JOIN
                       (SELECT rt_post_id, COUNT(rt_post_id) AS rt_cnt
+                        FROM retweet GROUP BY rt_post_id) AS a
+                        ON posts.id=a.rt_post_id) AS b
+                        WHERE members.id=b.member_id
+                        ORDER BY b.created DESC LIMIT ?, 5;');
+$posts->bindParam(1, $start, PDO::PARAM_INT);
+$posts->execute();
+
+/*
+$posts = $db->prepare('SELECT members.name, b.* FROM members,
+                    (SELECT posts.*, rt_cnt FROM posts LEFT JOIN
+                    (SELECT rt_post_id, COUNT(rt_post_id) AS rt_cnt
                       FROM retweet GROUP BY rt_post_id) AS a
                       ON posts.id=a.rt_post_id) AS b
                       WHERE members.id=b.member_id
                       ORDER BY b.created DESC LIMIT ?, 5;');
 $posts->bindParam(1, $start, PDO::PARAM_INT);
 $posts->execute();
+//$rts_t = array();
+//foreach ($rts as $po) {
+//  $rts_t[] = $post;
+//}
+/*
+$rts = $db->prepare('SELECT members.name, members.picture, b.* FROM members,
+                      (SELECT posts.*, rt_cnt FROM posts LEFT JOIN
+                      (SELECT rt_post_id, COUNT(rt_post_id) AS rt_cnt
+                      FROM retweet GROUP BY rt_post_id) AS a
+                      ON posts.id=a.rt_post_id) AS b
+                      WHERE members.id=b.member_id
+                      ORDER BY b.created DESC LIMIT ?, 5;');
+$rts->bindParam(1, $start, PDO::PARAM_INT);
+$rts->execute();
+*/
+
+//$posts = $db->query('SELECT posts.*, retweet.rt_post_id, COUNT(retweet.rt_post_id) AS rt_cnt FROM posts, retweet WHERE posts.id=retweet.rt_post_id GROUP BY rt_post_id ORDER BY posts.created');;
 
 
 //返信の場合
@@ -168,6 +189,15 @@ function makeLink ($value) {
         }
     }
     ?>
+
+
+    <?php if($like_number > 0){ ?>
+    <a class="iine_icon" href="iine_delete.php?id=<?php echo h($post['id']); ?>">❤️</a><?php echo h($post['iine_cnt']); ?>
+       <?php } else { ?>
+    <a class="iine_icon" href="iine.php?id=<?php echo h($post['id']); ?>">♡</a><?php echo h($post['iine_cnt']); ?>
+    <?php }?>
+
+
     <?php
     $rt_number = 0;
     for($i=0; $i<count($rt_total); $i++) {
@@ -177,12 +207,6 @@ function makeLink ($value) {
         }
     }
     ?>
-    <?php if($like_number > 0){ ?>
-    <a class="iine_icon" href="iine_delete.php?id=<?php echo h($post['id']); ?>">❤️</a><span><?php echo h($post['iine_cnt']); ?></span>
-       <?php } else { ?>
-    <a class="iine_icon" href="iine.php?id=<?php echo h($post['id']); ?>">♡</a><?php echo h($post['iine_cnt']); ?>
-    <?php }?>
-
 
     <?php if($rt_number > 0){ ?>
     <a href="rt_delete.php?id=<?php echo h($post['id']); ?>" style="padding-left: 5px;">
@@ -195,6 +219,8 @@ function makeLink ($value) {
     </a>
     <span><?php echo h($post['rt_cnt']); ?></span>
     <?php } ?>
+
+
 
     <p class="day"><a href="view.php?id=<?php print(h($post['id']));?>"><?php echo h($post['created']); ?></a>
 
