@@ -57,6 +57,10 @@ $posts = $db->prepare('SELECT members.name, members.picture, b.* FROM members,
                       ON posts.id=a.liked_post_id) AS b
                       WHERE members.id=b.member_id
                       ORDER BY b.created DESC LIMIT ?, 5;');
+$posts->bindParam(1, $start, PDO::PARAM_INT);
+$posts->execute();
+
+
 $posts = $db->prepare('SELECT members.name, members.picture, b.* FROM members,
                       (SELECT posts.*, rt_cnt FROM posts LEFT JOIN
                       (SELECT rt_post_id, COUNT(rt_post_id) AS rt_cnt
@@ -64,9 +68,6 @@ $posts = $db->prepare('SELECT members.name, members.picture, b.* FROM members,
                         ON posts.id=a.rt_post_id) AS b
                         WHERE members.id=b.member_id
                         ORDER BY b.created DESC LIMIT ?, 5;');
-$posts->bindParam(1, $start, PDO::PARAM_INT);
-$posts->execute();
-
 /*
 $posts = $db->prepare('SELECT members.name, b.* FROM members,
                     (SELECT posts.*, rt_cnt FROM posts LEFT JOIN
